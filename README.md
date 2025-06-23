@@ -4,246 +4,111 @@ A Go-based orchestration system that coordinates two Claude Code instances in a 
 
 ## Overview
 
-The Claude Code Orchestrator automates a two-phase development workflow:
+The Claude Code Orchestrator automates a structured two-phase development workflow:
 
-1. **Developer Phase**: A Claude Code instance reads a task and implements the requested changes
-2. **Review Phase**: Another Claude Code instance reviews the implementation and provides feedback
+1. **Developer Phase**: A Claude Code instance reads a task description and implements the requested changes
+2. **Review Phase**: Another Claude Code instance reviews the implementation and provides constructive feedback
 
-The system uses file-based triggers to coordinate between phases, ensuring a structured and traceable development process.
+The system uses a file-based trigger mechanism and state machine to coordinate between phases, ensuring a traceable and organized development process.
 
 ## Prerequisites
 
-- Go 1.19 or higher
-- Claude Code CLI installed and configured
-- macOS or Linux (Windows may require adjustments)
+- **Go 1.21 or higher** (as specified in go.mod)
+- **Claude Code CLI** installed and configured with valid API access
+- **Unix-like environment** (macOS/Linux - Windows may require script modifications)
+- **Git** for version control integration
 
 ## Installation
 
-1. Clone the repository:
+1. **Clone and navigate to the repository:**
    ```bash
    git clone https://github.com/mushfoo/claude-code-orchestrator.git
    cd claude-code-orchestrator
    ```
 
-2. Verify Claude Code is installed:
+2. **Install Go dependencies:**
+   ```bash
+   go mod tidy
+   ```
+
+3. **Verify Claude Code installation:**
    ```bash
    claude --version
    ```
 
-3. Make scripts executable:
+4. **Make all scripts executable:**
    ```bash
    chmod +x *.sh
    ```
 
-## Directory Structure
-
-```
-claude-code-orchestrator/
-├── main.go                    # Orchestrator core
-├── templates/
-│   ├── dev-prompt.md         # Developer instance instructions
-│   └── review-prompt.md      # Reviewer instance instructions
-├── .claude-coordination/      # Coordination files (auto-created)
-│   ├── current-task.md       # Input: Task description
-│   ├── dev-session.md        # Output: Developer's work summary
-│   ├── review-feedback.md    # Output: Reviewer's feedback
-│   └── *.trigger             # Trigger files for state transitions
-└── Scripts:
-    ├── run-orchestrator.sh   # Start the orchestrator
-    ├── trigger-task.sh       # Manually trigger a task
-    ├── claude-dev.sh         # Developer wrapper (used internally)
-    └── claude-review.sh      # Reviewer wrapper (used internally)
-```
-
-## Quick Start
-
-### Step 1: Start the Orchestrator
-
-```bash
-./run-orchestrator.sh
-```
-
-You should see:
-```
-🚀 Starting orchestrator, watching: .claude-coordination
-📝 To start a task: echo 'start' > .claude-coordination/task-ready.trigger
-👂 Watching for file changes... (press Ctrl+C to exit)
-```
-
-### Step 2: Create a Task
-
-Create or edit `.claude-coordination/current-task.md` with your task:
-
-```markdown
-# Task: Add User Authentication
-
-## Description
-Implement a basic user authentication system with login and logout functionality.
-
-## Requirements
-1. Create a User model with email and password
-2. Add login endpoint that returns a session token
-3. Add logout endpoint that invalidates the session
-4. Include appropriate error handling
-5. Write unit tests for the authentication logic
-```
-
-### Step 3: Trigger the Workflow
-
-```bash
-./trigger-task.sh
-```
-
-### Step 4: Monitor Progress
-
-The orchestrator will show the workflow progress:
-```
-📁 File changed: task-ready.trigger
-🔨 Starting Developer session...
-[Claude Code developer output]
-✅ Development phase complete!
-
-📁 File changed: dev-complete.trigger  
-👀 Starting Review session...
-[Claude Code reviewer output]
-✅ Review phase complete!
-
-✅ Cycle complete, returning to idle
-```
-
-### Step 5: Review Results
-
-Check the output files:
-- `.claude-coordination/dev-session.md` - Developer's implementation summary
-- `.claude-coordination/review-feedback.md` - Reviewer's feedback
-
-## Detailed Workflow
-
-### 1. Idle State
-- Orchestrator watches for changes to `task-ready.trigger`
-- You prepare task in `current-task.md`
-
-### 2. Developer Phase (StateDevRunning)
-- Triggered by: `task-ready.trigger` modification
-- Executes: `claude-dev.sh`
-- Claude Code reads the task and implements it
-- Outputs summary to `dev-session.md`
-- Triggers: `dev-complete.trigger`
-
-### 3. Review Phase (StateReviewRunning)
-- Triggered by: `dev-complete.trigger` modification
-- Executes: `claude-review.sh`
-- Claude Code reviews the developer's work
-- Outputs feedback to `review-feedback.md`
-- Triggers: `review-complete.trigger`
-
-### 4. Return to Idle
-- Triggered by: `review-complete.trigger` modification
-- Ready for next task
-
-## File-Based Triggers
-
-The system uses trigger files that you can manually control:
-
-```bash
-# Start a new task (if orchestrator is in Idle state)
-echo "start" > .claude-coordination/task-ready.trigger
-
-# Skip to review (if orchestrator is in DevRunning state)
-echo "done" > .claude-coordination/dev-complete.trigger
-
-# Complete review (if orchestrator is in ReviewRunning state)
-echo "done" > .claude-coordination/review-complete.trigger
-```
-
-## Advanced Usage
-
-### Running with Demo Mode
-
-To see the orchestrator work with simulated scripts:
-```bash
-go run main.go . --demo
-```
-
-### Custom Task Templates
-
-Edit the prompt templates in `templates/` to customize the behavior:
-- `dev-prompt.md` - Modify developer instructions
-- `review-prompt.md` - Modify review criteria
-
-### Manual Orchestrator Control
-
-Run the orchestrator directly:
-```bash
-go run main.go /path/to/project
-```
+5. **Test the installation:**
+   ```bash
+   go run main.go . --demo
+   ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **"Script not found" errors**
-   - Ensure all `.sh` files are executable: `chmod +x *.sh`
-   - Run from the project root directory
+#### 1. Script Execution Problems
+**Error**: `"Script not found"` or permission denied errors
+- **Solution**: Make all scripts executable: `chmod +x *.sh`
+- **Check**: Run from the project root directory
+- **Verify**: Scripts exist and have correct paths
 
-2. **Claude Code not responding**
-   - Verify Claude Code is installed: `which claude`
-   - Check Claude Code works standalone: `echo "test" | claude --print`
+#### 2. Claude Code Integration Issues  
+**Error**: Claude Code not responding or command not found
+- **Check installation**: `which claude` and `claude --version`
+- **Test standalone**: `echo "Hello" | claude --print`
+- **Verify authentication**: Claude Code API access configured
+- **Check PATH**: Claude Code CLI in system PATH
 
-3. **State machine stuck**
-   - Check current state in logs
-   - Manually trigger next phase using trigger files
-   - Restart orchestrator if needed
+#### 3. State Machine Problems
+**Error**: Orchestrator stuck in one state
+- **Check logs**: Review orchestrator output for error messages
+- **Manual trigger**: Force state transition with trigger files
+- **Process check**: Kill any hung Claude Code processes
+- **Restart**: Stop and restart the orchestrator
 
-### Debug Mode
+#### 4. File System Issues
+**Error**: Coordination directory or trigger files problems
+- **Permissions**: Ensure write access to project directory
+- **Directory**: Verify `.claude-coordination/` exists and is writable
+- **Space**: Check available disk space
+- **Cleanup**: Remove corrupted trigger files and restart
 
-View detailed logs by checking the orchestrator output. Each state transition and file change is logged with emojis for easy tracking:
-- 🚀 Starting
-- 📁 File changes
-- 🔨 Developer phase
-- 👀 Review phase
-- ✅ Success
-- ❌ Errors
-
-## Development
-
-### Running Tests
-
+#### 5. Go Module and Dependency Issues
+**Error**: Build or runtime errors
 ```bash
-# Run with test script (rapid triggers)
-./test-rapid.sh
+# Clean and rebuild dependencies
+go mod tidy
+go mod download
+go clean -cache
+
+# Test compilation
+go build -o orchestrator main.go
 ```
 
-### Architecture
+### Recovery Procedures
 
-The orchestrator uses:
-- `fsnotify` for file watching
-- Mutex-protected state machine
-- Process management with proper cleanup
-- Absolute paths for reliability
-
-### State Machine
-
-```
-Idle → DevRunning → ReviewRunning → Idle
-         ↓              ↓
-       Error ←────────Error
+**Complete Reset**:
+```bash
+# Stop orchestrator (Ctrl+C)
+# Clean coordination directory
+rm -rf .claude-coordination/
+# Restart orchestrator
+./run-orchestrator.sh
 ```
 
-## Contributing
-
-1. Keep the validated core orchestrator logic intact
-2. Test changes with both real Claude Code and simulation scripts
-3. Update documentation for any new features
-4. Follow the existing code style and patterns
+**State Reset Only**:
+```bash
+# Keep files, reset triggers only
+rm .claude-coordination/*.trigger
+# Orchestrator will recreate trigger files
+```
 
 ## License
 
-[Your license here]
+MIT License - Copyright (c) 2025 mushfoo
 
-## Support
-
-For issues or questions:
-- Check `CLAUDE_INTEGRATION.md` for technical details
-- Review orchestrator logs for state information
-- Open an issue with full error output and steps to reproduce
+See the [LICENSE](LICENSE) file for full details.
